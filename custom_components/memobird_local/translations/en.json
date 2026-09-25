@@ -51,6 +51,44 @@
           "description": "Print rules around the message."
         }
       }
+    },
+    "print_image": {
+      "name": "Print image",
+      "description": "Print an image from a file, a URL or a camera snapshot. It is scaled to the paper width (384 dots) and converted to black and white.",
+      "fields": {
+        "file": {
+          "name": "File",
+          "description": "Local path, e.g. /config/www/photo.jpg. Must be in allowlist_external_dirs."
+        },
+        "url": {
+          "name": "URL",
+          "description": "Image to download."
+        },
+        "camera": {
+          "name": "Camera",
+          "description": "Camera entity to take a snapshot from."
+        },
+        "title": {
+          "name": "Title",
+          "description": "Large bold heading above the image."
+        },
+        "caption": {
+          "name": "Caption",
+          "description": "Text printed under the image."
+        },
+        "dither": {
+          "name": "Dithering",
+          "description": "Simulate grey shades with dots (good for photos). Turn off for logos, QR codes and line art."
+        },
+        "timestamp": {
+          "name": "Timestamp",
+          "description": "Print the current date and time under the title."
+        },
+        "separator": {
+          "name": "Separators",
+          "description": "Print rules around the image."
+        }
+      }
     }
   }
 }

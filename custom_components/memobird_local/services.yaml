@@ -34,3 +34,41 @@ print:
       default: true
       selector:
         boolean:
+print_image:
+  target:
+    entity:
+      integration: memobird_local
+      domain: notify
+  fields:
+    file:
+      example: "/config/www/photo.jpg"
+      selector:
+        text:
+    url:
+      example: "https://example.com/image.png"
+      selector:
+        text:
+          type: url
+    camera:
+      selector:
+        entity:
+          domain: camera
+    title:
+      selector:
+        text:
+    caption:
+      selector:
+        text:
+          multiline: true
+    dither:
+      default: true
+      selector:
+        boolean:
+    timestamp:
+      default: false
+      selector:
+        boolean:
+    separator:
+      default: true
+      selector:
+        boolean:

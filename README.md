@@ -35,6 +35,25 @@ data:
   separator: true
 ```
 
+### Images
+
+`memobird_local.print_image` prints an image from a file, a URL or a camera snapshot (use exactly one). The image is scaled to the paper width (384 dots) and converted to black and white; tall images are fine.
+
+```yaml
+action: memobird_local.print_image
+target:
+  entity_id: notify.memobird
+data:
+  camera: camera.front_door        # or file: /config/www/photo.jpg, or url: https://…
+  title: Кто-то у двери
+  caption: "{{ now().strftime('%H:%M') }}"
+  dither: true                     # false for logos, QR codes and line art
+```
+
+Files must be inside `allowlist_external_dirs`; `/config/www` and `/media` are allowed by default.
+
+### Text encoding
+
 Text is sent in GBK, the printer's only encoding. Latin, Cyrillic and Chinese print fine; characters GBK can't encode (such as emoji) print as `?`.
 
 ## Local API
@@ -52,3 +71,5 @@ curl -X POST http://PRINTER_IP/sys/printer -H 'Content-Type: application/json' \
 ```
 
 The printer ignores a job whose `printID` it has already printed, so the integration generates a new one for every job.
+
+Images use `"printType":5` with `basetext` set to a base64 1-bit BMP, 384 dots wide and flipped vertically (the printer reads rows top-down). The firmware answers HTTP 500 to request bodies above roughly 26 KB, so larger jobs are sent as several packages with the same `printID` and `pkgNo` from 1 to `pkgCount`; the printer assembles them into one printout.
