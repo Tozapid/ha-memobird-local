@@ -1,0 +1,36 @@
+print:
+  target:
+    entity:
+      integration: memobird_local
+      domain: notify
+  fields:
+    message:
+      required: true
+      example: "Купить молоко"
+      selector:
+        text:
+          multiline: true
+    title:
+      example: "Список покупок"
+      selector:
+        text:
+    big:
+      default: false
+      selector:
+        boolean:
+    bold:
+      default: false
+      selector:
+        boolean:
+    underline:
+      default: false
+      selector:
+        boolean:
+    timestamp:
+      default: true
+      selector:
+        boolean:
+    separator:
+      default: true
+      selector:
+        boolean:

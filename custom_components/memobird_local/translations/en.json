@@ -1,0 +1,56 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Memobird printer",
+        "description": "Local network address of the printer. Give it a fixed IP in your router.",
+        "data": {
+          "host": "Host",
+          "name": "Name"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Can't reach the printer at this address."
+    },
+    "abort": {
+      "already_configured": "This printer is already configured."
+    }
+  },
+  "services": {
+    "print": {
+      "name": "Print",
+      "description": "Print text on the Memobird printer.",
+      "fields": {
+        "message": {
+          "name": "Message",
+          "description": "Text to print. Characters outside GBK (e.g. emoji) print as '?'."
+        },
+        "title": {
+          "name": "Title",
+          "description": "Large bold heading."
+        },
+        "big": {
+          "name": "Large font",
+          "description": "Print the message in the large font."
+        },
+        "bold": {
+          "name": "Bold",
+          "description": "Print the message in bold."
+        },
+        "underline": {
+          "name": "Underline",
+          "description": "Underline the message."
+        },
+        "timestamp": {
+          "name": "Timestamp",
+          "description": "Print the current date and time under the title."
+        },
+        "separator": {
+          "name": "Separators",
+          "description": "Print rules around the message."
+        }
+      }
+    }
+  }
+}
