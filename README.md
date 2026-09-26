@@ -35,6 +35,27 @@ data:
   separator: true
 ```
 
+### The `notify.memobird` service
+
+Besides the entity, the integration registers the classic notify service `notify.<name>` (`notify.memobird` for a printer named "Memobird"). Use it wherever Home Assistant asks for a notify service: notify groups, blueprints, alerts. Extra options go in `data`:
+
+```yaml
+action: notify.memobird
+data:
+  title: Протечка!
+  message: "Датчик в **ванной**"
+  data:
+    format: markdown      # plain | markdown | html
+    font_size: 28
+    timestamp: true
+    separator: true
+    # plain text only: big, bold, underline
+    # add an image (the message becomes its caption): file, url or camera, plus dither
+    camera: camera.bathroom
+```
+
+Unknown keys in `data` are rejected, so typos don't pass silently.
+
 ### Formatting: Markdown and HTML
 
 The printer can only style a whole block of text. To highlight single words, set `format: markdown` or `format: html`: the text is laid out with bundled DejaVu fonts and printed as an image.

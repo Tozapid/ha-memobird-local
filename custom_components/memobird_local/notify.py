@@ -1,65 +1,38 @@
-"""Notify entity and print actions for the Memobird printer."""
+"""Notify entity, notify.<name> service and print actions for Memobird."""
 
 from __future__ import annotations
 
-from pathlib import Path
+from typing import Any
 
-import aiohttp
 import voluptuous as vol
 
-from homeassistant.components.notify import NotifyEntity, NotifyEntityFeature
+from homeassistant.components.notify import (
+    ATTR_DATA,
+    ATTR_TITLE,
+    BaseNotificationService,
+    NotifyEntity,
+    NotifyEntityFeature,
+)
+from homeassistant.config_entries import ConfigEntryState
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError, ServiceValidationError
-from homeassistant.helpers import config_validation as cv, entity_platform
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers import entity_platform
 from homeassistant.helpers.entity_platform import AddConfigEntryEntitiesCallback
-from homeassistant.util import dt as dt_util
+from homeassistant.helpers.typing import ConfigType, DiscoveryInfoType
 
-from . import MemobirdConfigEntry
-from .api import (
-    LINE_DASH,
-    LINE_THIN,
-    Document,
-    MemobirdClient,
-    MemobirdError,
-    prepare_image,
-)
-from .render import (
-    DEFAULT_FONT_SIZE,
-    FORMAT_PLAIN,
-    FORMATS,
-    MAX_FONT_SIZE,
-    MIN_FONT_SIZE,
-    render,
-)
+from . import DATA_NOTIFY_SERVICES, MemobirdConfigEntry
 from .const import (
-    ATTR_BIG,
-    ATTR_BOLD,
     ATTR_CAMERA,
-    ATTR_CAPTION,
-    ATTR_DITHER,
     ATTR_FILE,
-    ATTR_FONT_SIZE,
-    ATTR_FORMAT,
-    ATTR_MESSAGE,
-    ATTR_SEPARATOR,
-    ATTR_TIMESTAMP,
-    ATTR_TITLE,
-    ATTR_UNDERLINE,
     ATTR_URL,
-    CONF_DEFAULT_FORMAT,
-    CONF_FONT_SIZE,
+    DOMAIN,
     SERVICE_PRINT,
     SERVICE_PRINT_IMAGE,
 )
 from .entity import MemobirdEntity
+from .printer import NOTIFY_DATA_SCHEMA, PRINT_IMAGE_SCHEMA, PRINT_SCHEMA
 
-# Characters per line at the normal font size.
-LINE_WIDTH = 32
-# Refuse to download anything bigger than this.
-MAX_IMAGE_BYTES = 20 * 1024 * 1024
-IMAGE_SOURCES = "image_source"
-FONT_SIZE_SCHEMA = vol.All(vol.Coerce(int), vol.Range(MIN_FONT_SIZE, MAX_FONT_SIZE))
+CONF_ENTRY_ID = "entry_id"
 
 
 async def async_setup_entry(
@@ -70,47 +43,35 @@ async def async_setup_entry(
     async_add_entities([MemobirdNotify(entry)])
 
     platform = entity_platform.async_get_current_platform()
+    platform.async_register_entity_service(SERVICE_PRINT, PRINT_SCHEMA, "async_print")
     platform.async_register_entity_service(
-        SERVICE_PRINT,
-        {
-            vol.Required(ATTR_MESSAGE): cv.string,
-            vol.Optional(ATTR_FORMAT): vol.In(FORMATS),
-            vol.Optional(ATTR_FONT_SIZE): FONT_SIZE_SCHEMA,
-            vol.Optional(ATTR_TITLE): cv.string,
-            vol.Optional(ATTR_BIG, default=False): cv.boolean,
-            vol.Optional(ATTR_BOLD, default=False): cv.boolean,
-            vol.Optional(ATTR_UNDERLINE, default=False): cv.boolean,
-            vol.Optional(ATTR_TIMESTAMP, default=True): cv.boolean,
-            vol.Optional(ATTR_SEPARATOR, default=True): cv.boolean,
-        },
-        "async_print",
+        SERVICE_PRINT_IMAGE, PRINT_IMAGE_SCHEMA, "async_print_image"
     )
-    platform.async_register_entity_service(
-        SERVICE_PRINT_IMAGE,
-        {
-            vol.Exclusive(ATTR_FILE, IMAGE_SOURCES): cv.string,
-            vol.Exclusive(ATTR_URL, IMAGE_SOURCES): cv.url,
-            vol.Exclusive(ATTR_CAMERA, IMAGE_SOURCES): cv.entity_id,
-            vol.Optional(ATTR_TITLE): cv.string,
-            vol.Optional(ATTR_CAPTION): cv.string,
-            vol.Optional(ATTR_FORMAT): vol.In(FORMATS),
-            vol.Optional(ATTR_FONT_SIZE): FONT_SIZE_SCHEMA,
-            vol.Optional(ATTR_DITHER, default=True): cv.boolean,
-            vol.Optional(ATTR_TIMESTAMP, default=False): cv.boolean,
-            vol.Optional(ATTR_SEPARATOR, default=True): cv.boolean,
-        },
-        "async_print_image",
-    )
+
+
+async def async_get_service(
+    hass: HomeAssistant,
+    config: ConfigType,
+    discovery_info: DiscoveryInfoType | None = None,
+) -> BaseNotificationService | None:
+    """Set up the notify.<name> service for a config entry."""
+    if discovery_info is None:
+        return None
+    entry_id = discovery_info[CONF_ENTRY_ID]
+    service = MemobirdNotificationService(entry_id)
+    hass.data[DATA_NOTIFY_SERVICES][entry_id] = service
+    return service
 
 
 class MemobirdNotify(MemobirdEntity, NotifyEntity):
+    """notify.memobird entity, for notify.send_message."""
+
     _attr_name = None
     _attr_supported_features = NotifyEntityFeature.TITLE
 
     def __init__(self, entry: MemobirdConfigEntry) -> None:
         super().__init__(entry, "notify")
-        self._entry = entry
-        self._client: MemobirdClient = entry.runtime_data.client
+        self._printer = entry.runtime_data.printer
 
     @property
     def available(self) -> bool:
@@ -118,137 +79,41 @@ class MemobirdNotify(MemobirdEntity, NotifyEntity):
         return True
 
     async def async_send_message(self, message: str, title: str | None = None) -> None:
-        await self.async_print(message=message, title=title)
+        await self._printer.print_text(message, title=title)
 
-    async def async_print(
-        self,
-        message: str,
-        format: str | None = None,  # noqa: A002 - service field name
-        font_size: int | None = None,
-        title: str | None = None,
-        big: bool = False,
-        bold: bool = False,
-        underline: bool = False,
-        timestamp: bool = True,
-        separator: bool = True,
-    ) -> None:
-        doc = Document()
-        self._add_header(doc, title, timestamp, separator)
-        fmt = format or self._default_format
-        if fmt == FORMAT_PLAIN:
-            doc.add_text(message.strip(), big=big, bold=bold, underline=underline)
+    async def async_print(self, **kwargs: Any) -> None:
+        await self._printer.print_text(**kwargs)
+
+    async def async_print_image(self, **kwargs: Any) -> None:
+        await self._printer.print_image(**kwargs)
+
+
+class MemobirdNotificationService(BaseNotificationService):
+    """The classic notify.<name> service, usable in notify groups and blueprints.
+
+    Looks the config entry up on every call, so it keeps working after the
+    entry is reloaded.
+    """
+
+    def __init__(self, entry_id: str) -> None:
+        self._entry_id = entry_id
+
+    async def async_send_message(self, message: str = "", **kwargs: Any) -> None:
+        entry = self.hass.config_entries.async_get_entry(self._entry_id)
+        if entry is None or entry.state is not ConfigEntryState.LOADED:
+            raise HomeAssistantError("The Memobird printer is not set up")
+        printer = entry.runtime_data.printer
+
+        try:
+            data = NOTIFY_DATA_SCHEMA(kwargs.get(ATTR_DATA) or {})
+        except vol.Invalid as err:
+            raise ServiceValidationError(f"Invalid data for {DOMAIN}: {err}") from err
+        title = kwargs.get(ATTR_TITLE)
+
+        if any(key in data for key in (ATTR_FILE, ATTR_URL, ATTR_CAMERA)):
+            # An image, with the message as its caption.
+            for key in ("big", "bold", "underline"):
+                data.pop(key, None)
+            await printer.print_image(title=title, caption=message or None, **data)
         else:
-            await self._add_formatted(doc, message, fmt, font_size)
-        if separator:
-            doc.add_line(LINE_DASH)
-        await self._send(doc)
-
-    async def async_print_image(
-        self,
-        file: str | None = None,
-        url: str | None = None,
-        camera: str | None = None,
-        title: str | None = None,
-        caption: str | None = None,
-        format: str | None = None,  # noqa: A002 - service field name
-        font_size: int | None = None,
-        dither: bool = True,
-        timestamp: bool = False,
-        separator: bool = True,
-    ) -> None:
-        if file:
-            data = await self._read_file(file)
-        elif url:
-            data = await self._download(url)
-        elif camera:
-            data = await self._snapshot(camera)
-        else:
-            raise ServiceValidationError("Provide one of: file, url or camera")
-
-        try:
-            img = await self.hass.async_add_executor_job(
-                lambda: prepare_image(data, dither=dither)
-            )
-        except MemobirdError as err:
-            raise HomeAssistantError(str(err)) from err
-
-        doc = Document()
-        self._add_header(doc, title, timestamp, separator)
-        doc.add_image(img)
-        if caption:
-            fmt = format or self._default_format
-            if fmt == FORMAT_PLAIN:
-                doc.add_text(caption.strip())
-            else:
-                await self._add_formatted(doc, caption, fmt, font_size)
-        if separator:
-            doc.add_line(LINE_DASH)
-        await self._send(doc)
-
-    @property
-    def _default_format(self) -> str:
-        return self._entry.options.get(CONF_DEFAULT_FORMAT, FORMAT_PLAIN)
-
-    async def _add_formatted(
-        self, doc: Document, text: str, fmt: str, font_size: int | None
-    ) -> None:
-        size = font_size or self._entry.options.get(CONF_FONT_SIZE, DEFAULT_FONT_SIZE)
-        img = await self.hass.async_add_executor_job(render, text.strip(), fmt, size)
-        if img is not None:
-            doc.add_image(img)
-
-    @staticmethod
-    def _add_header(
-        doc: Document, title: str | None, timestamp: bool, separator: bool
-    ) -> None:
-        if title:
-            doc.add_text(title.strip(), big=True, bold=True)
-        if timestamp:
-            now = dt_util.now().strftime("%d.%m.%Y %H:%M")
-            doc.add_text(now.center(LINE_WIDTH).rstrip())
-        if separator and (title or timestamp):
-            doc.add_line(LINE_THIN)
-
-    async def _send(self, doc: Document) -> None:
-        try:
-            await self._client.print_document(doc)
-        except MemobirdError as err:
-            raise HomeAssistantError(str(err)) from err
-
-    async def _read_file(self, file: str) -> bytes:
-        if not self.hass.config.is_allowed_path(file):
-            raise ServiceValidationError(
-                f"{file} is not in allowlist_external_dirs "
-                "(files under /config/www and /media are allowed by default)"
-            )
-        path = Path(file)
-        try:
-            return await self.hass.async_add_executor_job(path.read_bytes)
-        except OSError as err:
-            raise HomeAssistantError(f"Can't read {file}: {err}") from err
-
-    async def _download(self, url: str) -> bytes:
-        session = async_get_clientsession(self.hass)
-        try:
-            async with session.get(
-                url, timeout=aiohttp.ClientTimeout(total=30)
-            ) as resp:
-                resp.raise_for_status()
-                if (resp.content_length or 0) > MAX_IMAGE_BYTES:
-                    raise HomeAssistantError(f"Image at {url} is too large")
-                data = await resp.content.read(MAX_IMAGE_BYTES + 1)
-        except (aiohttp.ClientError, TimeoutError) as err:
-            raise HomeAssistantError(f"Can't download {url}: {err}") from err
-        if len(data) > MAX_IMAGE_BYTES:
-            raise HomeAssistantError(f"Image at {url} is too large")
-        return data
-
-    async def _snapshot(self, camera: str) -> bytes:
-        # Imported lazily: camera pulls in heavy dependencies.
-        from homeassistant.components.camera import async_get_image
-
-        try:
-            image = await async_get_image(self.hass, camera)
-        except HomeAssistantError as err:
-            raise HomeAssistantError(f"Can't get a snapshot from {camera}: {err}") from err
-        return image.content
+            await printer.print_text(message, title=title, **data)
