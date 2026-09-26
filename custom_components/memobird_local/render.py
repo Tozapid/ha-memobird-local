@@ -27,8 +27,11 @@ FORMAT_HTML = "html"
 FORMATS = [FORMAT_PLAIN, FORMAT_MARKDOWN, FORMAT_HTML]
 
 FONT_DIR = Path(__file__).parent / "fonts"
-BASE_SIZE = 24
-SIZES = {"h1": 40, "h2": 34, "h3": 28, "big": 34, "small": 20}
+DEFAULT_FONT_SIZE = 24
+MIN_FONT_SIZE = 12
+MAX_FONT_SIZE = 64
+# Heading and <big>/<small> sizes relative to the base font size.
+SCALES = {"h1": 5 / 3, "h2": 17 / 12, "h3": 7 / 6, "big": 17 / 12, "small": 5 / 6}
 LINE_SPACING = 1.25
 BLOCK_GAP = 8
 MARGIN = 4
@@ -48,7 +51,7 @@ class Run:
     underline: bool = False
     strike: bool = False
     mono: bool = False
-    size: int = BASE_SIZE
+    size: int = DEFAULT_FONT_SIZE
 
 
 @dataclass
@@ -92,8 +95,9 @@ class _Parser(HTMLParser):
     HEADINGS = {"h1", "h2", "h3"}
     BLOCKS = {"p", "div", "center", *HEADINGS}
 
-    def __init__(self) -> None:
+    def __init__(self, base_size: int) -> None:
         super().__init__(convert_charrefs=True)
+        self._base = base_size
         self.blocks: list[Block] = []
         self._styles: list[str] = []
         self._sizes: list[int] = []
@@ -120,10 +124,13 @@ class _Parser(HTMLParser):
             self._flush()
         else:
             # An empty line keeps its height, as in a chat message.
-            self._gap += int(BASE_SIZE * LINE_SPACING)
+            self._gap += int(self._base * LINE_SPACING)
 
     def _indent(self) -> int:
-        return max(0, len(self._lists) - 1) * BASE_SIZE
+        return max(0, len(self._lists) - 1) * self._base
+
+    def _size(self, tag: str) -> int:
+        return round(self._base * SCALES[tag])
 
     # Tags
 
@@ -131,7 +138,7 @@ class _Parser(HTMLParser):
         if tag in self.INLINE:
             self._styles.append(self.INLINE[tag])
         elif tag in ("big", "small"):
-            self._sizes.append(SIZES[tag])
+            self._sizes.append(self._size(tag))
         elif tag == "br":
             self._newline()
             self._after_block = True
@@ -158,7 +165,7 @@ class _Parser(HTMLParser):
                 self._center += 1
             self._flush(BLOCK_GAP)
             if tag in self.HEADINGS:
-                self._sizes.append(SIZES[tag])
+                self._sizes.append(self._size(tag))
                 self._styles.append("bold")
 
     def handle_startendtag(self, tag: str, attrs: list) -> None:
@@ -170,7 +177,7 @@ class _Parser(HTMLParser):
         if tag in self.INLINE:
             _remove_last(self._styles, self.INLINE[tag])
         elif tag in ("big", "small"):
-            _remove_last(self._sizes, SIZES[tag])
+            _remove_last(self._sizes, self._size(tag))
         elif tag in ("ul", "ol"):
             self._flush(BLOCK_GAP)
             if self._lists:
@@ -180,7 +187,7 @@ class _Parser(HTMLParser):
             self._flush()
         elif tag in self.BLOCKS:
             if tag in self.HEADINGS:
-                _remove_last(self._sizes, SIZES[tag])
+                _remove_last(self._sizes, self._size(tag))
                 _remove_last(self._styles, "bold")
             self._flush(BLOCK_GAP)
             if tag == "center":
@@ -208,7 +215,7 @@ class _Parser(HTMLParser):
                         underline="underline" in self._styles,
                         strike="strike" in self._styles,
                         mono="mono" in self._styles,
-                        size=self._sizes[-1] if self._sizes else BASE_SIZE,
+                        size=self._sizes[-1] if self._sizes else self._base,
                     )
                 )
 
@@ -283,12 +290,12 @@ def markdown_to_html(text: str) -> str:
     return re.sub(r"\x00(\d+)\x00", lambda m: stash[int(m[1])], html)
 
 
-def parse(text: str, fmt: str) -> list[Block]:
+def parse(text: str, fmt: str, base_size: int = DEFAULT_FONT_SIZE) -> list[Block]:
     if fmt == FORMAT_MARKDOWN:
         text = markdown_to_html(text)
     elif fmt != FORMAT_HTML:
         text = escape(text, quote=False)
-    parser = _Parser()
+    parser = _Parser(base_size)
     parser.feed(text)
     blocks = parser.close()
     # Drop trailing empty lines so the paper isn't wasted.
@@ -339,9 +346,11 @@ def _wrap(block: Block, width: int) -> list[list[_Piece]]:
     return lines
 
 
-def render(text: str, fmt: str, width: int = 384) -> Image.Image | None:
+def render(
+    text: str, fmt: str, base_size: int = DEFAULT_FONT_SIZE, width: int = 384
+) -> Image.Image | None:
     """Lay out formatted text; returns a 1-bit image, or None if empty."""
-    blocks = parse(text, fmt)
+    blocks = parse(text, fmt, base_size)
     if not blocks:
         return None
 
@@ -356,13 +365,13 @@ def render(text: str, fmt: str, width: int = 384) -> Image.Image | None:
             continue
         bullet_width = 0.0
         if block.bullet:
-            bullet_font = _font(False, False, False, BASE_SIZE)
+            bullet_font = _font(False, False, False, base_size)
             bullet_width = bullet_font.getlength(block.bullet)
         left = MARGIN + block.indent
         text_left = left + bullet_width
         lines = _wrap(block, width - MARGIN - int(text_left)) if block.runs else [[]]
         for i, line in enumerate(lines):
-            size = max((p.run.size for p in line), default=BASE_SIZE)
+            size = max((p.run.size for p in line), default=base_size)
             ascent = max(
                 (_run_font(p.run).getmetrics()[0] for p in line),
                 default=_font(False, False, False, size).getmetrics()[0],
@@ -385,7 +394,7 @@ def render(text: str, fmt: str, width: int = 384) -> Image.Image | None:
         if op[0] == "rule":
             draw.rectangle([MARGIN, pos + 2, width - MARGIN, pos + 3], fill=0)
         elif op[0] == "bullet":
-            font = _font(False, False, False, BASE_SIZE)
+            font = _font(False, False, False, base_size)
             draw.text((op[1], pos), op[2], font=font, fill=0, anchor="ls")
         else:
             x = op[1]

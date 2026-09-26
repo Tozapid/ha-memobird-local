@@ -16,14 +16,23 @@ from homeassistant.const import CONF_HOST, CONF_NAME
 from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.selector import (
+    NumberSelector,
+    NumberSelectorConfig,
+    NumberSelectorMode,
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
 )
 
 from .api import MemobirdClient, MemobirdError
-from .const import CONF_DEFAULT_FORMAT, DOMAIN
-from .render import FORMAT_PLAIN, FORMATS
+from .const import CONF_DEFAULT_FORMAT, CONF_FONT_SIZE, DOMAIN
+from .render import (
+    DEFAULT_FONT_SIZE,
+    FORMAT_PLAIN,
+    FORMATS,
+    MAX_FONT_SIZE,
+    MIN_FONT_SIZE,
+)
 
 DEFAULT_NAME = "Memobird"
 
@@ -72,7 +81,7 @@ class MemobirdConfigFlow(ConfigFlow, domain=DOMAIN):
 
 
 class MemobirdOptionsFlow(OptionsFlow):
-    """Default text format for notify.send_message and the print actions."""
+    """Default text format and font size for formatted printing."""
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -80,17 +89,35 @@ class MemobirdOptionsFlow(OptionsFlow):
         if user_input is not None:
             return self.async_create_entry(data=user_input)
 
-        current = self.config_entry.options.get(CONF_DEFAULT_FORMAT, FORMAT_PLAIN)
+        options = self.config_entry.options
         return self.async_show_form(
             step_id="init",
             data_schema=vol.Schema(
                 {
-                    vol.Required(CONF_DEFAULT_FORMAT, default=current): SelectSelector(
+                    vol.Required(
+                        CONF_DEFAULT_FORMAT,
+                        default=options.get(CONF_DEFAULT_FORMAT, FORMAT_PLAIN),
+                    ): SelectSelector(
                         SelectSelectorConfig(
                             options=FORMATS,
                             translation_key="format",
                             mode=SelectSelectorMode.LIST,
                         )
+                    ),
+                    vol.Required(
+                        CONF_FONT_SIZE,
+                        default=options.get(CONF_FONT_SIZE, DEFAULT_FONT_SIZE),
+                    ): vol.All(
+                        NumberSelector(
+                            NumberSelectorConfig(
+                                min=MIN_FONT_SIZE,
+                                max=MAX_FONT_SIZE,
+                                step=1,
+                                mode=NumberSelectorMode.SLIDER,
+                                unit_of_measurement="px",
+                            )
+                        ),
+                        vol.Coerce(int),
                     ),
                 }
             ),

@@ -24,7 +24,14 @@ from .api import (
     MemobirdError,
     prepare_image,
 )
-from .render import FORMAT_PLAIN, FORMATS, render
+from .render import (
+    DEFAULT_FONT_SIZE,
+    FORMAT_PLAIN,
+    FORMATS,
+    MAX_FONT_SIZE,
+    MIN_FONT_SIZE,
+    render,
+)
 from .const import (
     ATTR_BIG,
     ATTR_BOLD,
@@ -32,6 +39,7 @@ from .const import (
     ATTR_CAPTION,
     ATTR_DITHER,
     ATTR_FILE,
+    ATTR_FONT_SIZE,
     ATTR_FORMAT,
     ATTR_MESSAGE,
     ATTR_SEPARATOR,
@@ -40,6 +48,7 @@ from .const import (
     ATTR_UNDERLINE,
     ATTR_URL,
     CONF_DEFAULT_FORMAT,
+    CONF_FONT_SIZE,
     SERVICE_PRINT,
     SERVICE_PRINT_IMAGE,
 )
@@ -50,6 +59,7 @@ LINE_WIDTH = 32
 # Refuse to download anything bigger than this.
 MAX_IMAGE_BYTES = 20 * 1024 * 1024
 IMAGE_SOURCES = "image_source"
+FONT_SIZE_SCHEMA = vol.All(vol.Coerce(int), vol.Range(MIN_FONT_SIZE, MAX_FONT_SIZE))
 
 
 async def async_setup_entry(
@@ -65,6 +75,7 @@ async def async_setup_entry(
         {
             vol.Required(ATTR_MESSAGE): cv.string,
             vol.Optional(ATTR_FORMAT): vol.In(FORMATS),
+            vol.Optional(ATTR_FONT_SIZE): FONT_SIZE_SCHEMA,
             vol.Optional(ATTR_TITLE): cv.string,
             vol.Optional(ATTR_BIG, default=False): cv.boolean,
             vol.Optional(ATTR_BOLD, default=False): cv.boolean,
@@ -83,6 +94,7 @@ async def async_setup_entry(
             vol.Optional(ATTR_TITLE): cv.string,
             vol.Optional(ATTR_CAPTION): cv.string,
             vol.Optional(ATTR_FORMAT): vol.In(FORMATS),
+            vol.Optional(ATTR_FONT_SIZE): FONT_SIZE_SCHEMA,
             vol.Optional(ATTR_DITHER, default=True): cv.boolean,
             vol.Optional(ATTR_TIMESTAMP, default=False): cv.boolean,
             vol.Optional(ATTR_SEPARATOR, default=True): cv.boolean,
@@ -112,6 +124,7 @@ class MemobirdNotify(MemobirdEntity, NotifyEntity):
         self,
         message: str,
         format: str | None = None,  # noqa: A002 - service field name
+        font_size: int | None = None,
         title: str | None = None,
         big: bool = False,
         bold: bool = False,
@@ -125,7 +138,7 @@ class MemobirdNotify(MemobirdEntity, NotifyEntity):
         if fmt == FORMAT_PLAIN:
             doc.add_text(message.strip(), big=big, bold=bold, underline=underline)
         else:
-            await self._add_formatted(doc, message, fmt)
+            await self._add_formatted(doc, message, fmt, font_size)
         if separator:
             doc.add_line(LINE_DASH)
         await self._send(doc)
@@ -138,6 +151,7 @@ class MemobirdNotify(MemobirdEntity, NotifyEntity):
         title: str | None = None,
         caption: str | None = None,
         format: str | None = None,  # noqa: A002 - service field name
+        font_size: int | None = None,
         dither: bool = True,
         timestamp: bool = False,
         separator: bool = True,
@@ -166,7 +180,7 @@ class MemobirdNotify(MemobirdEntity, NotifyEntity):
             if fmt == FORMAT_PLAIN:
                 doc.add_text(caption.strip())
             else:
-                await self._add_formatted(doc, caption, fmt)
+                await self._add_formatted(doc, caption, fmt, font_size)
         if separator:
             doc.add_line(LINE_DASH)
         await self._send(doc)
@@ -175,8 +189,11 @@ class MemobirdNotify(MemobirdEntity, NotifyEntity):
     def _default_format(self) -> str:
         return self._entry.options.get(CONF_DEFAULT_FORMAT, FORMAT_PLAIN)
 
-    async def _add_formatted(self, doc: Document, text: str, fmt: str) -> None:
-        img = await self.hass.async_add_executor_job(render, text.strip(), fmt)
+    async def _add_formatted(
+        self, doc: Document, text: str, fmt: str, font_size: int | None
+    ) -> None:
+        size = font_size or self._entry.options.get(CONF_FONT_SIZE, DEFAULT_FONT_SIZE)
+        img = await self.hass.async_add_executor_job(render, text.strip(), fmt, size)
         if img is not None:
             doc.add_image(img)
 

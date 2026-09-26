@@ -18,5 +18,7 @@ ATTR_CAMERA = "camera"
 ATTR_CAPTION = "caption"
 ATTR_DITHER = "dither"
 ATTR_FORMAT = "format"
+ATTR_FONT_SIZE = "font_size"
 
 CONF_DEFAULT_FORMAT = "default_format"
+CONF_FONT_SIZE = "font_size"

@@ -53,6 +53,10 @@
         "format": {
           "name": "Format",
           "description": "`plain`, `markdown` (`**bold**`, `*italic*`, `++underline++`, `~~strike~~`, `` `code` ``, `# heading`, `- list`) or `html` (tags b, i, u, s, code, big, small, h1-h3, center, ul/ol/li, hr, br). Defaults to the integration options."
+        },
+        "font_size": {
+          "name": "Font size",
+          "description": "Base font size in pixels for markdown and html, 12-64. Defaults to the integration options."
         }
       }
     },
@@ -95,6 +99,10 @@
         "format": {
           "name": "Format",
           "description": "Caption format: `plain`, `markdown` (`**bold**`, `*italic*`, `++underline++`, `~~strike~~`, `` `code` ``, `# heading`, `- list`) or `html` (tags b, i, u, s, code, big, small, h1-h3, center, ul/ol/li, hr, br). Defaults to the integration options."
+        },
+        "font_size": {
+          "name": "Font size",
+          "description": "Base font size in pixels for markdown and html, 12-64. Defaults to the integration options."
         }
       }
     }
@@ -105,10 +113,12 @@
         "title": "Memobird options",
         "description": "Markdown and HTML are rendered as an image with bundled fonts, so single words can be bold, italic, underlined or struck through. Plain text uses the printer's built-in font.",
         "data": {
-          "default_format": "Default text format"
+          "default_format": "Default text format",
+          "font_size": "Font size"
         },
         "data_description": {
-          "default_format": "Used by notify.send_message and when an action doesn't set format."
+          "default_format": "Used by notify.send_message and when an action doesn't set format.",
+          "font_size": "Base size for Markdown and HTML text (24 px by default). Headings scale with it. Plain text uses the printer's built-in font and isn't affected."
         }
       }
     }

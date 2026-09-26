@@ -18,6 +18,14 @@ print:
             - markdown
             - html
           translation_key: format
+    font_size:
+      selector:
+        number:
+          min: 12
+          max: 64
+          step: 1
+          unit_of_measurement: px
+          mode: slider
     title:
       example: "Список покупок"
       selector:
@@ -76,6 +84,14 @@ print_image:
             - markdown
             - html
           translation_key: format
+    font_size:
+      selector:
+        number:
+          min: 12
+          max: 64
+          step: 1
+          unit_of_measurement: px
+          mode: slider
     dither:
       default: true
       selector:

@@ -66,7 +66,7 @@ data:
 
 Line breaks are kept, as in Telegram. Use `\*` to print a literal `*` in Markdown and `&lt;` for `<` in HTML. Emoji are dropped because the fonts don't have them.
 
-The default format for `notify.send_message` (and for actions without `format`) is set in the integration's **Configure** dialog. `print_image` also accepts `format` for its caption.
+The default format for `notify.send_message` (and for actions without `format`) and the base font size (24 px by default, 12–64) are set in the integration's **Configure** dialog. Both actions also accept `font_size` to override it for one printout; headings scale with it. `print_image` also accepts `format` for its caption.
 
 ### Images
 
