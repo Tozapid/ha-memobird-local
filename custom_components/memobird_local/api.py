@@ -49,7 +49,7 @@ class PrinterStatus:
 
 
 def prepare_image(data: bytes, *, dither: bool = True) -> Image.Image:
-    """Turn any image file into a 1-bit bitmap exactly one print head wide.
+    """Turn any image into a 1-bit bitmap exactly one print head wide.
 
     Blocking (decoding and resampling): run it in an executor.
     """
@@ -58,11 +58,8 @@ def prepare_image(data: bytes, *, dither: bool = True) -> Image.Image:
         img.load()
     except (OSError, ValueError) as err:
         raise MemobirdError(f"Can't read image: {err}") from err
-    return to_bitmap(ImageOps.exif_transpose(img), dither=dither)
 
-
-def to_bitmap(img: Image.Image, *, dither: bool = True) -> Image.Image:
-    """Scale/pad a decoded image to the paper width and make it 1-bit."""
+    img = ImageOps.exif_transpose(img)
     if img.mode in ("RGBA", "LA", "P"):
         # Transparent areas should come out as paper, not black.
         img = img.convert("RGBA")

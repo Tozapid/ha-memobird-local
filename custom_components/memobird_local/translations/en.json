@@ -62,7 +62,7 @@
     },
     "print_image": {
       "name": "Print image",
-      "description": "Print an image from a file, a URL, a camera snapshot or SVG markup. It is scaled to the paper width (384 dots) and converted to black and white.",
+      "description": "Print an image from a file, a URL or a camera snapshot. It is scaled to the paper width (384 dots) and converted to black and white.",
       "fields": {
         "file": {
           "name": "File",
@@ -76,10 +76,6 @@
           "name": "Camera",
           "description": "Camera entity to take a snapshot from."
         },
-        "svg": {
-          "name": "SVG",
-          "description": "SVG markup to print, e.g. line art from ai_task.generate_data. Shapes, paths, transforms, fills and strokes are supported; text and gradients are ignored."
-        },
         "title": {
           "name": "Title",
           "description": "Large bold heading above the image."
@@ -90,7 +86,7 @@
         },
         "dither": {
           "name": "Dithering",
-          "description": "Simulate grey shades with dots (good for photos). Turn off for logos, QR codes and line art. SVG is printed without dithering unless this is on."
+          "description": "Simulate grey shades with dots (good for photos). Turn off for logos, QR codes and line art."
         },
         "timestamp": {
           "name": "Timestamp",

@@ -24,7 +24,6 @@ from . import DATA_NOTIFY_SERVICES, MemobirdConfigEntry
 from .const import (
     ATTR_CAMERA,
     ATTR_FILE,
-    ATTR_SVG,
     ATTR_URL,
     DOMAIN,
     SERVICE_PRINT,
@@ -111,7 +110,7 @@ class MemobirdNotificationService(BaseNotificationService):
             raise ServiceValidationError(f"Invalid data for {DOMAIN}: {err}") from err
         title = kwargs.get(ATTR_TITLE)
 
-        if any(key in data for key in (ATTR_FILE, ATTR_URL, ATTR_CAMERA, ATTR_SVG)):
+        if any(key in data for key in (ATTR_FILE, ATTR_URL, ATTR_CAMERA)):
             # An image, with the message as its caption.
             for key in ("big", "bold", "underline"):
                 data.pop(key, None)
