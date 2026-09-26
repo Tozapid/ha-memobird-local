@@ -49,6 +49,10 @@
         "separator": {
           "name": "Separators",
           "description": "Print rules around the message."
+        },
+        "format": {
+          "name": "Format",
+          "description": "plain, markdown (**bold**, *italic*, ++underline++, ~~strike~~, `code`, # headings, - lists) or html (<b>, <i>, <u>, <s>, <code>, <big>, <small>, <h1>-<h3>, <center>, <ul>/<ol>, <hr>). Default comes from the integration options."
         }
       }
     },
@@ -87,7 +91,34 @@
         "separator": {
           "name": "Separators",
           "description": "Print rules around the image."
+        },
+        "format": {
+          "name": "Format",
+          "description": "Caption format: plain, markdown (**bold**, *italic*, ++underline++, ~~strike~~, `code`, # headings, - lists) or html (<b>, <i>, <u>, <s>, <code>, <big>, <small>, <h1>-<h3>, <center>, <ul>/<ol>, <hr>). Default comes from the integration options."
         }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Memobird options",
+        "description": "Markdown and HTML are rendered as an image with bundled fonts, so single words can be bold, italic, underlined or struck through. Plain text uses the printer's built-in font.",
+        "data": {
+          "default_format": "Default text format"
+        },
+        "data_description": {
+          "default_format": "Used by notify.send_message and when an action doesn't set format."
+        }
+      }
+    }
+  },
+  "selector": {
+    "format": {
+      "options": {
+        "plain": "Plain text",
+        "markdown": "Markdown",
+        "html": "HTML"
       }
     }
   }

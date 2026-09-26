@@ -24,6 +24,7 @@ from .api import (
     MemobirdError,
     prepare_image,
 )
+from .render import FORMAT_PLAIN, FORMATS, render
 from .const import (
     ATTR_BIG,
     ATTR_BOLD,
@@ -31,12 +32,14 @@ from .const import (
     ATTR_CAPTION,
     ATTR_DITHER,
     ATTR_FILE,
+    ATTR_FORMAT,
     ATTR_MESSAGE,
     ATTR_SEPARATOR,
     ATTR_TIMESTAMP,
     ATTR_TITLE,
     ATTR_UNDERLINE,
     ATTR_URL,
+    CONF_DEFAULT_FORMAT,
     SERVICE_PRINT,
     SERVICE_PRINT_IMAGE,
 )
@@ -61,6 +64,7 @@ async def async_setup_entry(
         SERVICE_PRINT,
         {
             vol.Required(ATTR_MESSAGE): cv.string,
+            vol.Optional(ATTR_FORMAT): vol.In(FORMATS),
             vol.Optional(ATTR_TITLE): cv.string,
             vol.Optional(ATTR_BIG, default=False): cv.boolean,
             vol.Optional(ATTR_BOLD, default=False): cv.boolean,
@@ -78,6 +82,7 @@ async def async_setup_entry(
             vol.Exclusive(ATTR_CAMERA, IMAGE_SOURCES): cv.entity_id,
             vol.Optional(ATTR_TITLE): cv.string,
             vol.Optional(ATTR_CAPTION): cv.string,
+            vol.Optional(ATTR_FORMAT): vol.In(FORMATS),
             vol.Optional(ATTR_DITHER, default=True): cv.boolean,
             vol.Optional(ATTR_TIMESTAMP, default=False): cv.boolean,
             vol.Optional(ATTR_SEPARATOR, default=True): cv.boolean,
@@ -92,6 +97,7 @@ class MemobirdNotify(MemobirdEntity, NotifyEntity):
 
     def __init__(self, entry: MemobirdConfigEntry) -> None:
         super().__init__(entry, "notify")
+        self._entry = entry
         self._client: MemobirdClient = entry.runtime_data.client
 
     @property
@@ -105,6 +111,7 @@ class MemobirdNotify(MemobirdEntity, NotifyEntity):
     async def async_print(
         self,
         message: str,
+        format: str | None = None,  # noqa: A002 - service field name
         title: str | None = None,
         big: bool = False,
         bold: bool = False,
@@ -114,7 +121,11 @@ class MemobirdNotify(MemobirdEntity, NotifyEntity):
     ) -> None:
         doc = Document()
         self._add_header(doc, title, timestamp, separator)
-        doc.add_text(message.strip(), big=big, bold=bold, underline=underline)
+        fmt = format or self._default_format
+        if fmt == FORMAT_PLAIN:
+            doc.add_text(message.strip(), big=big, bold=bold, underline=underline)
+        else:
+            await self._add_formatted(doc, message, fmt)
         if separator:
             doc.add_line(LINE_DASH)
         await self._send(doc)
@@ -126,6 +137,7 @@ class MemobirdNotify(MemobirdEntity, NotifyEntity):
         camera: str | None = None,
         title: str | None = None,
         caption: str | None = None,
+        format: str | None = None,  # noqa: A002 - service field name
         dither: bool = True,
         timestamp: bool = False,
         separator: bool = True,
@@ -150,10 +162,23 @@ class MemobirdNotify(MemobirdEntity, NotifyEntity):
         self._add_header(doc, title, timestamp, separator)
         doc.add_image(img)
         if caption:
-            doc.add_text(caption.strip())
+            fmt = format or self._default_format
+            if fmt == FORMAT_PLAIN:
+                doc.add_text(caption.strip())
+            else:
+                await self._add_formatted(doc, caption, fmt)
         if separator:
             doc.add_line(LINE_DASH)
         await self._send(doc)
+
+    @property
+    def _default_format(self) -> str:
+        return self._entry.options.get(CONF_DEFAULT_FORMAT, FORMAT_PLAIN)
+
+    async def _add_formatted(self, doc: Document, text: str, fmt: str) -> None:
+        img = await self.hass.async_add_executor_job(render, text.strip(), fmt)
+        if img is not None:
+            doc.add_image(img)
 
     @staticmethod
     def _add_header(

@@ -10,6 +10,14 @@ print:
       selector:
         text:
           multiline: true
+    format:
+      selector:
+        select:
+          options:
+            - plain
+            - markdown
+            - html
+          translation_key: format
     title:
       example: "Список покупок"
       selector:
@@ -60,6 +68,14 @@ print_image:
       selector:
         text:
           multiline: true
+    format:
+      selector:
+        select:
+          options:
+            - plain
+            - markdown
+            - html
+          translation_key: format
     dither:
       default: true
       selector:

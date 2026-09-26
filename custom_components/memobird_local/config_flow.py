@@ -6,18 +6,35 @@ from typing import Any
 
 import voluptuous as vol
 
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import (
+    ConfigEntry,
+    ConfigFlow,
+    ConfigFlowResult,
+    OptionsFlow,
+)
 from homeassistant.const import CONF_HOST, CONF_NAME
+from homeassistant.core import callback
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.selector import (
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
+)
 
 from .api import MemobirdClient, MemobirdError
-from .const import DOMAIN
+from .const import CONF_DEFAULT_FORMAT, DOMAIN
+from .render import FORMAT_PLAIN, FORMATS
 
 DEFAULT_NAME = "Memobird"
 
 
 class MemobirdConfigFlow(ConfigFlow, domain=DOMAIN):
     VERSION = 1
+
+    @staticmethod
+    @callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> OptionsFlow:
+        return MemobirdOptionsFlow()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -51,4 +68,30 @@ class MemobirdConfigFlow(ConfigFlow, domain=DOMAIN):
                 user_input,
             ),
             errors=errors,
+        )
+
+
+class MemobirdOptionsFlow(OptionsFlow):
+    """Default text format for notify.send_message and the print actions."""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        current = self.config_entry.options.get(CONF_DEFAULT_FORMAT, FORMAT_PLAIN)
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(
+                {
+                    vol.Required(CONF_DEFAULT_FORMAT, default=current): SelectSelector(
+                        SelectSelectorConfig(
+                            options=FORMATS,
+                            translation_key="format",
+                            mode=SelectSelectorMode.LIST,
+                        )
+                    ),
+                }
+            ),
         )

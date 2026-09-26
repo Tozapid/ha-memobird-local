@@ -18,7 +18,7 @@ The integration creates:
 
 - `notify.memobird`: a notify entity, so `notify.send_message` works (message and title).
 - `binary_sensor.memobird_connectivity`: whether the printer answers on the LAN.
-- The `memobird_local.print` action, which gives more control over formatting:
+- The `memobird_local.print` action, which gives more control over the layout:
 
 ```yaml
 action: memobird_local.print
@@ -34,6 +34,39 @@ data:
   timestamp: true
   separator: true
 ```
+
+### Formatting: Markdown and HTML
+
+The printer can only style a whole block of text. To highlight single words, set `format: markdown` or `format: html`: the text is laid out with bundled DejaVu fonts and printed as an image.
+
+```yaml
+action: memobird_local.print
+target:
+  entity_id: notify.memobird
+data:
+  format: markdown
+  message: |
+    # Покупки
+    Купить **молоко** и *хлеб*, ++срочно++, ~~не сыр~~, код `A-17`
+    - яйца
+    - масло
+```
+
+| Markdown | HTML | Result |
+|---|---|---|
+| `**bold**`, `__bold__` | `<b>`, `<strong>` | bold |
+| `*italic*`, `_italic_` | `<i>`, `<em>` | italic |
+| `++underline++` | `<u>`, `<ins>` | underline |
+| `~~strike~~` | `<s>`, `<del>` | strikethrough |
+| `` `code` `` | `<code>` | monospace |
+| `# h1`, `## h2`, `### h3` | `<h1>`–`<h3>`, `<big>`, `<small>` | sizes |
+| `- item`, `1. item` | `<ul>`/`<ol>` + `<li>` | lists |
+| `---` | `<hr>` | rule |
+| | `<center>` | centred text |
+
+Line breaks are kept, as in Telegram. Use `\*` to print a literal `*` in Markdown and `&lt;` for `<` in HTML. Emoji are dropped because the fonts don't have them.
+
+The default format for `notify.send_message` (and for actions without `format`) is set in the integration's **Configure** dialog. `print_image` also accepts `format` for its caption.
 
 ### Images
 
@@ -73,3 +106,5 @@ curl -X POST http://PRINTER_IP/sys/printer -H 'Content-Type: application/json' \
 The printer ignores a job whose `printID` it has already printed, so the integration generates a new one for every job.
 
 Images use `"printType":5` with `basetext` set to a base64 1-bit BMP, 384 dots wide and flipped vertically (the printer reads rows top-down). The firmware answers HTTP 500 to request bodies above roughly 26 KB, so larger jobs are sent as several packages with the same `printID` and `pkgNo` from 1 to `pkgCount`; the printer assembles them into one printout.
+
+Fonts in `custom_components/memobird_local/fonts` are DejaVu fonts, distributed under their own license (see `LICENSE-DejaVu.txt` there).

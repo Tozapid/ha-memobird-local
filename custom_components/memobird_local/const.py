@@ -17,3 +17,6 @@ ATTR_URL = "url"
 ATTR_CAMERA = "camera"
 ATTR_CAPTION = "caption"
 ATTR_DITHER = "dither"
+ATTR_FORMAT = "format"
+
+CONF_DEFAULT_FORMAT = "default_format"
