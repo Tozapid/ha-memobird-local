@@ -52,7 +52,7 @@
         },
         "format": {
           "name": "Format",
-          "description": "plain, markdown (**bold**, *italic*, ++underline++, ~~strike~~, `code`, # headings, - lists) or html (<b>, <i>, <u>, <s>, <code>, <big>, <small>, <h1>-<h3>, <center>, <ul>/<ol>, <hr>). Default comes from the integration options."
+          "description": "`plain`, `markdown` (`**bold**`, `*italic*`, `++underline++`, `~~strike~~`, `` `code` ``, `# heading`, `- list`) or `html` (tags b, i, u, s, code, big, small, h1-h3, center, ul/ol/li, hr, br). Defaults to the integration options."
         }
       }
     },
@@ -94,7 +94,7 @@
         },
         "format": {
           "name": "Format",
-          "description": "Caption format: plain, markdown (**bold**, *italic*, ++underline++, ~~strike~~, `code`, # headings, - lists) or html (<b>, <i>, <u>, <s>, <code>, <big>, <small>, <h1>-<h3>, <center>, <ul>/<ol>, <hr>). Default comes from the integration options."
+          "description": "Caption format: `plain`, `markdown` (`**bold**`, `*italic*`, `++underline++`, `~~strike~~`, `` `code` ``, `# heading`, `- list`) or `html` (tags b, i, u, s, code, big, small, h1-h3, center, ul/ol/li, hr, br). Defaults to the integration options."
         }
       }
     }
