@@ -14,7 +14,7 @@ from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.util import dt as dt_util
 
-from .api import LINE_DASH, LINE_THIN, Document, MemobirdError, prepare_image
+from .api import LINE_DASH, LINE_THIN, Document, MemobirdError, prepare_image, to_bitmap
 from .const import (
     ATTR_BIG,
     ATTR_BOLD,
@@ -26,6 +26,7 @@ from .const import (
     ATTR_FORMAT,
     ATTR_MESSAGE,
     ATTR_SEPARATOR,
+    ATTR_SVG,
     ATTR_TIMESTAMP,
     ATTR_TITLE,
     ATTR_UNDERLINE,
@@ -41,6 +42,7 @@ from .render import (
     MIN_FONT_SIZE,
     render,
 )
+from .svg import SvgError, render_svg
 
 if TYPE_CHECKING:
     from . import MemobirdConfigEntry
@@ -68,6 +70,7 @@ IMAGE_SOURCE = {
     vol.Exclusive(ATTR_FILE, IMAGE_SOURCES): cv.string,
     vol.Exclusive(ATTR_URL, IMAGE_SOURCES): cv.url,
     vol.Exclusive(ATTR_CAMERA, IMAGE_SOURCES): cv.entity_id,
+    vol.Exclusive(ATTR_SVG, IMAGE_SOURCES): cv.string,
     vol.Optional(ATTR_DITHER): cv.boolean,
 }
 
@@ -123,29 +126,38 @@ class MemobirdPrinter:
         file: str | None = None,
         url: str | None = None,
         camera: str | None = None,
+        svg: str | None = None,
         title: str | None = None,
         caption: str | None = None,
         format: str | None = None,  # noqa: A002 - service field name
         font_size: int | None = None,
-        dither: bool = True,
+        dither: bool | None = None,
         timestamp: bool = False,
         separator: bool = True,
     ) -> None:
-        if file:
-            data = await self._read_file(file)
-        elif url:
-            data = await self._download(url)
-        elif camera:
-            data = await self._snapshot(camera)
+        if svg:
+            # Line art: crisp threshold unless dithering is asked for.
+            try:
+                img = await self.hass.async_add_executor_job(
+                    lambda: to_bitmap(render_svg(svg), dither=bool(dither))
+                )
+            except SvgError as err:
+                raise ServiceValidationError(str(err)) from err
         else:
-            raise ServiceValidationError("Provide one of: file, url or camera")
-
-        try:
-            img = await self.hass.async_add_executor_job(
-                lambda: prepare_image(data, dither=dither)
-            )
-        except MemobirdError as err:
-            raise HomeAssistantError(str(err)) from err
+            if file:
+                data = await self._read_file(file)
+            elif url:
+                data = await self._download(url)
+            elif camera:
+                data = await self._snapshot(camera)
+            else:
+                raise ServiceValidationError("Provide one of: file, url, camera or svg")
+            try:
+                img = await self.hass.async_add_executor_job(
+                    lambda: prepare_image(data, dither=dither is not False)
+                )
+            except MemobirdError as err:
+                raise HomeAssistantError(str(err)) from err
 
         doc = Document()
         self._add_header(doc, title, timestamp, separator)
