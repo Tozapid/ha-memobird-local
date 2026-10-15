@@ -77,7 +77,9 @@ def prepare_image(data: bytes, *, dither: bool = True) -> Image.Image:
 
     if dither:
         return img.convert("1")
-    return img.point(lambda v: 255 if v >= 128 else 0).convert("1", dither=Image.Dither.NONE)
+    return img.point(lambda v: 255 if v >= 128 else 0).convert(
+        "1", dither=Image.Dither.NONE
+    )
 
 
 @dataclass
@@ -119,7 +121,9 @@ class Document:
     def add_image(self, img: Image.Image) -> Document:
         """Add a bitmap from prepare_image(), split into strips."""
         for top in range(0, img.height, IMAGE_STRIP_ROWS):
-            strip = img.crop((0, top, img.width, min(top + IMAGE_STRIP_ROWS, img.height)))
+            strip = img.crop(
+                (0, top, img.width, min(top + IMAGE_STRIP_ROWS, img.height))
+            )
             buf = io.BytesIO()
             # BMP stores rows bottom-up; the printer reads them top-down.
             ImageOps.flip(strip).save(buf, "BMP")
