@@ -40,7 +40,7 @@ BULLET = "• "
 INK_THRESHOLD = 160
 # DejaVu has no emoji: drop them (and their joiners/variation selectors)
 # rather than printing empty boxes.
-_NO_GLYPH = re.compile("[\U00010000-\U0010FFFF\u200d\ufe0e\ufe0f]")
+_NO_GLYPH = re.compile("[\U00010000-\U0010ffff\u200d\ufe0e\ufe0f]")
 
 
 @dataclass
@@ -86,11 +86,17 @@ class _Parser(HTMLParser):
     """Turns the supported HTML subset into blocks of styled runs."""
 
     INLINE = {
-        "b": "bold", "strong": "bold",
-        "i": "italic", "em": "italic",
-        "u": "underline", "ins": "underline",
-        "s": "strike", "del": "strike", "strike": "strike",
-        "code": "mono", "tt": "mono",
+        "b": "bold",
+        "strong": "bold",
+        "i": "italic",
+        "em": "italic",
+        "u": "underline",
+        "ins": "underline",
+        "s": "strike",
+        "del": "strike",
+        "strike": "strike",
+        "code": "mono",
+        "tt": "mono",
     }
     HEADINGS = {"h1", "h2", "h3"}
     BLOCKS = {"p", "div", "center", *HEADINGS}
@@ -253,7 +259,9 @@ def markdown_to_html(text: str) -> str:
 
     def inline(line: str) -> str:
         line = re.sub(rf"\\([{_ESCAPABLE}])", lambda m: keep(escape(m[1])), line)
-        line = re.sub(r"`([^`]+)`", lambda m: keep(f"<code>{escape(m[1])}</code>"), line)
+        line = re.sub(
+            r"`([^`]+)`", lambda m: keep(f"<code>{escape(m[1])}</code>"), line
+        )
         line = escape(line, quote=False)
         for pattern, repl in _INLINE_RULES:
             line = pattern.sub(repl, line)
@@ -299,7 +307,9 @@ def parse(text: str, fmt: str, base_size: int = DEFAULT_FONT_SIZE) -> list[Block
     parser.feed(text)
     blocks = parser.close()
     # Drop trailing empty lines so the paper isn't wasted.
-    while blocks and not blocks[-1].runs and not blocks[-1].rule and not blocks[-1].bullet:
+    while (
+        blocks and not blocks[-1].runs and not blocks[-1].rule and not blocks[-1].bullet
+    ):
         blocks.pop()
     return blocks
 

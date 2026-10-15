@@ -229,5 +229,7 @@ class MemobirdPrinter:
         try:
             image = await async_get_image(self.hass, camera)
         except HomeAssistantError as err:
-            raise HomeAssistantError(f"Can't get a snapshot from {camera}: {err}") from err
+            raise HomeAssistantError(
+                f"Can't get a snapshot from {camera}: {err}"
+            ) from err
         return image.content
